@@ -407,15 +407,7 @@ static int cycle_out_of_range(float value, float expected)
     if (range<1)
         range = 1;
 
-    /* The expected time check is disabled for Linux right now. Since the
-        Linux kernel is configured for a 6 Mhz clock, there are a couple
-        of context switch during this test. On the real chip the clock will
-        be set the real value (600 Mhz) alleviating this problem. */
-#ifndef __linux__
     return ((value < expected - range) || (value > expected + range));
-#else
-    return 0;
-#endif
 }
 
 

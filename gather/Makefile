@@ -398,13 +398,6 @@ run_vz: $(TARGET) $(DATA_FILE)
 		echo "Diffing packets - TEST FAILED" && false; \
 	fi
 
-run-linux: $(DATA_FILE) 
-	# Please see README-Linux.txt for addition steps needed to
-	# run this example under Linux
-	oct-packet-io -w 5 -p ${OCTEON_SIM_PACKET_TCP_PORT} -c 1 -o output-%d.data ${INPUT_FILES} &
-	cd $(OCTEON_ROOT)/linux/kernel; ./oct-linux -quiet -numcores=$(NUM_PROCESSORS)
-
-
 run-all:
 	for ((cores=1; cores<=$(NUM_CORES); cores++)); do \
 		make -s run NUM_PROCESSORS=$${cores}; \
