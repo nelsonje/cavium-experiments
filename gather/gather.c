@@ -65,11 +65,6 @@
 #include "cvmx-srio.h"
 #include "cvmx-config-parse.h"
 
-/*
- * Configure passthrough to run with lockless pko operations.
- */
-//#define ENABLE_LOCKLESS_PKO
-
 
 #define FAU_PACKETS     ((cvmx_fau_reg_64_t)(CVMX_FAU_REG_AVAIL_BASE + 0))   /**< Fetch and add for counting packets processed */
 #define FAU_ERRORS      ((cvmx_fau_reg_64_t)(CVMX_FAU_REG_AVAIL_BASE + 8))   /**< Fetch and add for counting detected errors */
@@ -279,10 +274,6 @@ void application_main_loop(void)
 #endif
 
 
-#ifdef ENABLE_LOCKLESS_PKO
-        queue = cvmx_pko_get_base_queue_per_core(port, cvmx_get_core_num());
-        cvmx_pko_send_packet_prepare(port, queue, CVMX_PKO_LOCK_NONE);
-#else
         /*
          * Begin packet output by requesting a tag switch to atomic.
          * Writing to a packet output queue must be synchronized across cores.
@@ -300,7 +291,6 @@ void application_main_loop(void)
 	    queue += (corenum % cvmx_pko_get_num_queues(port));
 	}
         cvmx_pko_send_packet_prepare(port, queue, CVMX_PKO_LOCK_ATOMIC_TAG);
-#endif
 
         if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
         {
@@ -370,17 +360,12 @@ void application_main_loop(void)
          * for the queue.
          *
          */
-#ifdef ENABLE_LOCKLESS_PKO
-        ret = cvmx_pko_send_packet_finish(port, queue, pko_command,
-	    packet_ptr, CVMX_PKO_LOCK_NONE);
-#else
 	if (octeon_has_feature(OCTEON_FEATURE_PKND))
 	    ret = cvmx_pko_send_packet_finish_pkoid(pko_port, queue,
 	        pko_command, packet_ptr, CVMX_PKO_LOCK_ATOMIC_TAG);
 	else
 	    ret = cvmx_pko_send_packet_finish(port, queue, pko_command,
 	        packet_ptr, CVMX_PKO_LOCK_ATOMIC_TAG);
-#endif
         if (ret)
         {
             printf("Failed to send packet using cvmx_pko_send_packet_finish\n");
@@ -555,30 +540,6 @@ int main(int argc, char *argv[])
     }
 
     CORE_MASK_BARRIER_SYNC;
-
-
-#ifdef ENABLE_LOCKLESS_PKO
-    /* First core do some runtime sanity check.
-       Make sure there is enough queues for each core online */
-    if (IS_INIT_CORE) {
-	    int cores_online = cvmx_coremask_get_core_count(&coremask_passthrough);
-
-            if ((cores_online  > CVMX_PKO_QUEUES_PER_PORT_INTERFACE0)
-            || (cores_online > CVMX_PKO_QUEUES_PER_PORT_INTERFACE1))  {
-            printf ("Lockless PKO operation requires each running\n");
-            printf ("core to use a dedicated PKO queue for each port\n");
-                   printf ("%d cores are online\n", cores_online);
-            printf ("Interface 0 has %d queues per port \n",
-                                       CVMX_PKO_QUEUES_PER_PORT_INTERFACE0);
-            printf ("Interface 1 has %d queues per port \n",
-                                       CVMX_PKO_QUEUES_PER_PORT_INTERFACE1);
-            printf ("Failed to enable Lockless PKO   \n");
-            return -1;
-        }
-        printf("Enable Lockless PKO\n");
-    }
-    CORE_MASK_BARRIER_SYNC;
-#endif
 
     cvmx_helper_initialize_packet_io_local();
 
