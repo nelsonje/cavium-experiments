@@ -102,86 +102,11 @@ swap_mac_addr(uint64_t pkt_ptr)
 }
 #endif
 
-/**
- * Setup the Cavium Simple Executive Libraries using defaults
- *
- * @param num_packet_buffers
- *               Number of outstanding packets to support
- * @return Zero on success
- */
-static int application_init_simple_exec(int num_packet_buffers)
-{
-    int result;
-
-    if (cvmx_helper_initialize_fpa(num_packet_buffers, num_packet_buffers, CVMX_PKO_MAX_OUTPUT_QUEUES * 4, 0, 0))
-        return -1;
-
-    if (cvmx_helper_initialize_sso(num_packet_buffers))
-        return -1;
 
 
-    if (octeon_has_feature(OCTEON_FEATURE_NO_WPTR))
-    {
-        cvmx_ipd_ctl_status_t ipd_ctl_status;
-        printf("Enabling CVMX_IPD_CTL_STATUS[NO_WPTR]\n");
-        ipd_ctl_status.u64 = cvmx_read_csr(CVMX_IPD_CTL_STATUS);
-        ipd_ctl_status.s.no_wptr = 1;
-#ifdef __LITTLE_ENDIAN_BITFIELD
-        ipd_ctl_status.s.pkt_lend = 1;
-        ipd_ctl_status.s.wqe_lend = 1;
-#endif
-        cvmx_write_csr(CVMX_IPD_CTL_STATUS, ipd_ctl_status.u64);
-    }
 
-    cvmx_helper_cfg_opt_set(CVMX_HELPER_CFG_OPT_USE_DWB, 0);
-    result = cvmx_helper_initialize_packet_io_global();
 
-    /* Don't enable RED on simulator */
-    if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM)
-        cvmx_helper_setup_red(num_packet_buffers/4, num_packet_buffers/8);
 
-    /* Leave 16 bytes space for the ethernet header */
-    cvmx_write_csr(CVMX_PIP_IP_OFFSET, 2);
-    cvmx_helper_cfg_set_jabber_and_frame_max();
-    cvmx_helper_cfg_store_short_packets_in_wqe();
-
-    /* Initialize the FAU registers. */
-    cvmx_fau_atomic_write64(FAU_ERRORS, 0);
-    if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
-    {
-        cvmx_fau_atomic_write64(FAU_PACKETS, 0);
-        cvmx_fau_atomic_write64(FAU_OUTSTANDING, 0);
-    }
-
-    return result;
-}
-
-/**
- * Clean up and properly shutdown the simple exec libraries.
- *
- * @return Zero on success. Non zero means some resources are
- *         unaccounted for. In this case error messages will have
- *         been displayed during shutdown.
- */
-static int application_shutdown_simple_exec(void)
-{
-    int result = 0;
-    int status;
-    int pool;
-
-    cvmx_helper_shutdown_packet_io_global();
-
-    for (pool=0; pool<CVMX_FPA_NUM_POOLS; pool++)
-    {
-        if (cvmx_fpa_get_block_size(pool) > 0)
-        {
-            status = cvmx_fpa_shutdown_pool(pool);
-            result |= status;
-        }
-    }
-
-    return result;
-}
 
 /**
  * Process incoming packets. Just send them back out the
@@ -376,6 +301,97 @@ void application_main_loop(void)
 
 
 
+
+
+
+
+
+
+
+
+
+
+/**
+ * Setup the Cavium Simple Executive Libraries using defaults
+ *
+ * @param num_packet_buffers
+ *               Number of outstanding packets to support
+ * @return Zero on success
+ */
+static int application_init_simple_exec(int num_packet_buffers)
+{
+    int result;
+
+    if (cvmx_helper_initialize_fpa(num_packet_buffers, num_packet_buffers, CVMX_PKO_MAX_OUTPUT_QUEUES * 4, 0, 0))
+        return -1;
+
+    if (cvmx_helper_initialize_sso(num_packet_buffers))
+        return -1;
+
+
+    if (octeon_has_feature(OCTEON_FEATURE_NO_WPTR))
+    {
+        cvmx_ipd_ctl_status_t ipd_ctl_status;
+        printf("Enabling CVMX_IPD_CTL_STATUS[NO_WPTR]\n");
+        ipd_ctl_status.u64 = cvmx_read_csr(CVMX_IPD_CTL_STATUS);
+        ipd_ctl_status.s.no_wptr = 1;
+#ifdef __LITTLE_ENDIAN_BITFIELD
+        ipd_ctl_status.s.pkt_lend = 1;
+        ipd_ctl_status.s.wqe_lend = 1;
+#endif
+        cvmx_write_csr(CVMX_IPD_CTL_STATUS, ipd_ctl_status.u64);
+    }
+
+    cvmx_helper_cfg_opt_set(CVMX_HELPER_CFG_OPT_USE_DWB, 0);
+    result = cvmx_helper_initialize_packet_io_global();
+
+    /* Don't enable RED on simulator */
+    if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM)
+        cvmx_helper_setup_red(num_packet_buffers/4, num_packet_buffers/8);
+
+    /* Leave 16 bytes space for the ethernet header */
+    cvmx_write_csr(CVMX_PIP_IP_OFFSET, 2);
+    cvmx_helper_cfg_set_jabber_and_frame_max();
+    cvmx_helper_cfg_store_short_packets_in_wqe();
+
+    /* Initialize the FAU registers. */
+    cvmx_fau_atomic_write64(FAU_ERRORS, 0);
+    if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
+    {
+        cvmx_fau_atomic_write64(FAU_PACKETS, 0);
+        cvmx_fau_atomic_write64(FAU_OUTSTANDING, 0);
+    }
+
+    return result;
+}
+
+/**
+ * Clean up and properly shutdown the simple exec libraries.
+ *
+ * @return Zero on success. Non zero means some resources are
+ *         unaccounted for. In this case error messages will have
+ *         been displayed during shutdown.
+ */
+static int application_shutdown_simple_exec(void)
+{
+    int result = 0;
+    int status;
+    int pool;
+
+    cvmx_helper_shutdown_packet_io_global();
+
+    for (pool=0; pool<CVMX_FPA_NUM_POOLS; pool++)
+    {
+        if (cvmx_fpa_get_block_size(pool) > 0)
+        {
+            status = cvmx_fpa_shutdown_pool(pool);
+            result |= status;
+        }
+    }
+
+    return result;
+}
+
 /**
  * Determine if a number is approximately equal to a match
  * value. Checks if the supplied value is within 5% of the
@@ -477,8 +493,6 @@ int main(int argc, char *argv[])
     struct cvmx_coremask coremask_passthrough;
     int result = 0;
 
-#define CORE_MASK_BARRIER_SYNC\
-        cvmx_coremask_barrier_sync(&coremask_passthrough)
 #define IS_INIT_CORE	(cvmx_is_init_core())
 
 #ifdef ENABLE_USING_CONFIG_STRING
@@ -539,7 +553,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    CORE_MASK_BARRIER_SYNC;
+    cvmx_coremask_barrier_sync(&coremask_passthrough);
 
     cvmx_helper_initialize_packet_io_local();
 
@@ -574,11 +588,12 @@ int main(int argc, char *argv[])
         start_cycle = cvmx_get_cycle();
     }
 
-    CORE_MASK_BARRIER_SYNC;
+    cvmx_coremask_barrier_sync(&coremask_passthrough);
+
+    // now actually do work
     application_main_loop();
 
     cvmx_coremask_barrier_sync(&coremask_passthrough);
-
 
     /* Remember when we stopped the test. This could have been done in the
        application_shutdown, but for accurate numbers it needs to be as close as
