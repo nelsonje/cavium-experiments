@@ -82,62 +82,7 @@ static unsigned int packet_termination_num;
 static int volatile core_unplug_requested  = 0;
 static int volatile app_shutdown_requested = 0;
 
-//#define ENABLE_PASSTHROUGH_HOTPLUG 1
 #include "app.config"
-
-#ifdef ENABLE_PASSTHROUGH_HOTPLUG
-static int app_shutdown = 1;
-/* Passthrough hotplug callback arguments */
-typedef struct passthrough_hp_cb_args {
-    void *mem_ptr;
-} passthrough_hp_cb_args_t;
-
-void passthrough_shutdown_callback(passthrough_hp_cb_args_t* data)
-{
-    if (cvmx_is_init_core())
-        printf("Hotplug callback called for core #%d data %p\n",
-               cvmx_get_core_num(), data->mem_ptr);
-    app_shutdown_requested = 1;
-}
-
-void passthrough_unplug_callback(passthrough_hp_cb_args_t* data)
-{
-    printf("Unlpug callback called for core #%d data %p\n",
-               cvmx_get_core_num(), data->mem_ptr);
-    core_unplug_requested = 1;
-}
-
-CVMX_SHARED passthrough_hp_cb_args_t passthrough_hp_cb_args_data;
-
-int init_hotplug(void)
-{
-    passthrough_hp_cb_args_data.mem_ptr = (void*)0xA5A5A5A5;
-
-    if (is_core_being_hot_plugged())
-    {
-        printf("core=%d is being hotplugged\n", cvmx_get_core_num());
-    }
-
-    if (cvmx_is_init_core())
-    {
-        cvmx_app_hotplug_callbacks_t cb;
-        bzero(&cb, sizeof(cb));
-        cb.shutdown_callback =  (void(*)(void*))passthrough_shutdown_callback;
-        cb.unplug_core_callback =  (void(*)(void*))passthrough_unplug_callback;
-        /* Register application for hotplug. this only needs to be done once */
-        cvmx_app_hotplug_register_cb(&cb, &passthrough_hp_cb_args_data, app_shutdown);
-    }
-
-    /* Activate hotplug */
-    if (cvmx_app_hotplug_activate())
-    {
-        printf("ERROR: cvmx_hotplug_activate() failed\n");
-        return -1;
-    }
-    return 0;
-}
-
-#endif
 
 /* Note: The dump_packet routine that used to be here has been moved to
     cvmx_helper_dump_packet. */
@@ -255,9 +200,6 @@ void application_main_loop(void)
     cvmx_buf_ptr_t  packet_ptr;
     cvmx_pko_command_word0_t pko_command;
     const int use_ipd_no_wptr = octeon_has_feature(OCTEON_FEATURE_NO_WPTR);
-#ifdef ENABLE_PASSTHROUGH_HOTPLUG
-    int holds_atomic_tag = 0;
-#endif
     int queue, ret, pko_port, corenum;
     int packet_pool = (int)cvmx_fpa_get_packet_pool();
     int wqe_pool = (int)cvmx_fpa_get_wqe_pool();
@@ -279,14 +221,6 @@ void application_main_loop(void)
     while (1)
     {
 
-#ifdef ENABLE_PASSTHROUGH_HOTPLUG
-        if ((core_unplug_requested || app_shutdown_requested) && (app_shutdown))
-        {
-            printf("core=%d : is unplugged\n",cvmx_get_core_num());
-            if (holds_atomic_tag) cvmx_pow_tag_sw_null_nocheck();
-            break;
-        }
-#endif
         /* get the next packet/work to process from the POW unit. */
         if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
         {
@@ -452,9 +386,6 @@ void application_main_loop(void)
             printf("Failed to send packet using cvmx_pko_send_packet_finish\n");
             cvmx_fau_atomic_add64(FAU_ERRORS, 1);
         }
-#ifdef ENABLE_PASSTHROUGH_HOTPLUG
-        holds_atomic_tag = 1;
-#endif
     }
 }
 
@@ -561,13 +492,8 @@ int main(int argc, char *argv[])
     struct cvmx_coremask coremask_passthrough;
     int result = 0;
 
-#ifndef ENABLE_PASSTHROUGH_HOTPLUG
 #define CORE_MASK_BARRIER_SYNC\
         cvmx_coremask_barrier_sync(&coremask_passthrough)
-#else
-#define CORE_MASK_BARRIER_SYNC if (!is_core_being_hot_plugged())\
-        cvmx_coremask_barrier_sync(&coremask_passthrough)
-#endif
 #define IS_INIT_CORE	(cvmx_is_init_core())
 
 #ifdef ENABLE_USING_CONFIG_STRING
@@ -576,13 +502,8 @@ int main(int argc, char *argv[])
 	    cvmx_set_app_config_str(app_config_str);
     }
 #endif
-
+    
     cvmx_user_app_init();
-
-#ifdef ENABLE_PASSTHROUGH_HOTPLUG
-    if (init_hotplug())
-        return -1;
-#endif
 
     /* compute coremask_passthrough on all cores for the first barrier sync below */
     sysinfo = cvmx_sysinfo_get();
@@ -695,15 +616,6 @@ int main(int argc, char *argv[])
     CORE_MASK_BARRIER_SYNC;
     application_main_loop();
 
-#ifdef ENABLE_PASSTHROUGH_HOTPLUG
-    if (core_unplug_requested)
-        cvmx_app_hotplug_core_shutdown();
-
-    cvmx_coremask_copy(&coremask_passthrough, &sysinfo->core_mask);
-    printf("Shutdown coremask=");
-    cvmx_coremask_print(&coremask_passthrough);
-#endif
-
     cvmx_coremask_barrier_sync(&coremask_passthrough);
 
 
@@ -740,10 +652,6 @@ int main(int argc, char *argv[])
     }
 
     cvmx_coremask_barrier_sync(&coremask_passthrough);
-#ifdef ENABLE_PASSTHROUGH_HOTPLUG
-    if (app_shutdown_requested)
-        cvmx_app_hotplug_core_shutdown();
-#endif
 
     return result;
 }
