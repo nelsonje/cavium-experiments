@@ -12,11 +12,24 @@ configurable. All output goes out a single port. No output checking is
 done, but you can look at the output file (output-2048.data, probably)
 and verify that all the packets look the same.
 
-Build and run the sample:
+To build and run the sample, make sure this repo is at
 
+  OCTEON-SDK/examples/cavium-experiments
+
+and make sure you've done
+
+  $ source env-setup OCTEON_CN68XX
+
+in the OCTEON-SDK directory. Then you can do
+
+  $ cd OCTEON-SDK/examples/cavium-experiments
 	$ make clean
 	$ make
 	$ make run
 
+and you'll see the output scroll by. Page back to see the log messages
+while sending packets. The sent packets will be captured in a file
+probably called output-2048.data.
+
 The number of processors simulated can be modified by changing
-NUM_PROCESSORS in the makefile.
+NUM_PROCESSORS in the makefile/command line ("make NUM_PROCESSORS=16").
