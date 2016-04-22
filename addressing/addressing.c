@@ -174,13 +174,13 @@ void application_main_loop(void)
   // (look at cvmx-access-native.h in the SDK to see the code)
   //
     
-  uint64_t array_on_stack[233] = {0}; // TODO: should probably be cacheline-aligned
+  uint64_t array_on_stack[233] = {0};
   memcpy( &array_on_stack[0], &shared_packet[0], 233 );
   uint64_t * packet_stack = &array_on_stack[0]; 
   printf("core %2d:       stack: virtual %18p, physical %18p, physical2 %18p\n",
          corenum, packet_stack, (void*)cvmx_ptr_to_phys(packet_stack), (void*)cvmx_ptr_to_phys2(packet_stack) );
                                                                                                                                                                                   
-  uint64_t * packet_malloc = malloc( 233 );  // TODO: should probably be cacheline-aligned and freed after begin sent
+  uint64_t * packet_malloc = malloc( 233 );  // TODO: should probably freed after being sent
   memcpy( packet_malloc, &shared_packet[0], 233 );
   printf("core %2d:      malloc: virtual %18p, physical %18p, physical2 %18p\n",
          corenum, packet_malloc, (void*)cvmx_ptr_to_phys(packet_malloc), (void*)cvmx_ptr_to_phys2(packet_malloc) );
