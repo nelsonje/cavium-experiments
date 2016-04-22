@@ -57,7 +57,7 @@ endif
 INTF_TO_USE?="sgmii0"
 
 # default number of cores to use
-NUM_PROCESSORS=4
+NUM_PROCESSORS=1
 
 CFLAGS_LOCAL = -g -O2 -W -Wall -Wno-unused-parameter
 
@@ -92,5 +92,13 @@ clobber: clean
 # run simulation, saving packet output to files
 run: $(TARGET)
 	oct-packet-io -w 5 -p ${OCTEON_SIM_PACKET_TCP_PORT} -c 1 -o output-%d.data &
-	oct-sim $(TARGET) -quiet -noperf -serve=${OCTEON_SIM_PACKET_TCP_PORT} -maxcycles=120000000 -numcores=${NUM_PROCESSORS} ${GATHER_SIM_MODES} ${QLM_LANE_MASK} 
+	oct-sim $(TARGET) -quiet -noperf -serve=${OCTEON_SIM_PACKET_TCP_PORT} -maxcycles=120000000 -numcores=${NUM_PROCESSORS} ${GATHER_SIM_MODES} ${QLM_LANE_MASK}
+ifeq "${NUM_PROCESSORS}" "1"
+	if diff output-2048.data expected.data; \
+	then \
+		echo "Diffing packets - TEST PASSED"; \
+	else \
+		echo "Diffing packets - TEST FAILED" && false; \
+	fi
+endif
 

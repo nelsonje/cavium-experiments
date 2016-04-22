@@ -7,9 +7,9 @@ configuration.
 
 I use the oct-packet-io utility to capture the packets sent. The app
 sends a fixed number of packets from each core; the number of cores is
-configurable. All output goes out a single port. No output checking is
-done, but you can look at the output file (output-2048.data, probably)
-and verify that all the packets look the same.
+configurable. All output goes out a single port.
+
+Output checking is done automatically when running on a single core.
 
 To build and run the code, make sure this repo is at
 
