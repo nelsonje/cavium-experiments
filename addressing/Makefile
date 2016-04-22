@@ -77,7 +77,7 @@ dir := $(OCTEON_ROOT)/executive
 include $(dir)/cvmx.mk
 
 # application specification
-OBJS = $(OBJ_DIR)/addressing.o
+OBJS = $(OBJ_DIR)/$(TARGET).o
 DEPS = $(OBJS:%.o=%.d)
 include $(OCTEON_ROOT)/application.mk
 
