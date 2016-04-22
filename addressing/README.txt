@@ -12,7 +12,7 @@ configurable. All output goes out a single port. No output checking is
 done, but you can look at the output file (output-2048.data, probably)
 and verify that all the packets look the same.
 
-To build and run the sample, make sure this repo is at
+To build and run the code, make sure this repo is at
 
   OCTEON-SDK/examples/cavium-experiments
 
@@ -22,7 +22,7 @@ and make sure you've done
 
 in the OCTEON-SDK directory. Then you can do
 
-  $ cd OCTEON-SDK/examples/cavium-experiments
+  $ cd OCTEON-SDK/examples/cavium-experiments/addressing
 	$ make clean
 	$ make
 	$ make run
